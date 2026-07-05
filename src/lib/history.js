@@ -1,14 +1,13 @@
 const API = 'http://localhost:4000';
 
-export async function getHistory() {
-  // json-server query params: newest first, capped at 50 entries.
-  const res = await fetch(`${API}/history?_sort=id&_order=desc&_limit=50`);
+export async function getHistory(userId) {
+  const scope = userId != null ? `&userId=${encodeURIComponent(userId)}` : '';
+  const res = await fetch(`${API}/history?_sort=id&_order=desc&_limit=50${scope}`);
   const data = await res.json();
   return Array.isArray(data) ? data : [];
 }
 
 export async function addHistoryEntry(entry) {
-  // POST to a json-server array resource auto-assigns an incrementing "id".
   const res = await fetch(`${API}/history`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -17,8 +16,8 @@ export async function addHistoryEntry(entry) {
   return res.json();
 }
 
-export async function getStatsSummary() {
-  const history = await getHistory();
+export async function getStatsSummary(userId) {
+  const history = await getHistory(userId);
   if (!history.length) {
     return { bestScore: 0, accuracy: 0, quizzesPlayed: 0, history: [] };
   }
