@@ -20,6 +20,17 @@ async function findByUsername(username) {
   return matches[0] || null;
 }
 
+// Strips the password out of anything we keep in React state, so it never
+// ends up floating around client-side beyond the moment it's checked.
+// Note: json-server has no server-side code, so this check unavoidably
+// happens in the browser and the password sits in db.json as plain text —
+// fine for a local/dev project, not something to reuse for real users.
+function stripPassword(account) {
+  if (!account) return account;
+  const { password, ...rest } = account;
+  return rest;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
@@ -32,18 +43,22 @@ export function AuthProvider({ children }) {
     }
     fetch(`${API}/users/${id}`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setUser(data))
+      .then((data) => setUser(stripPassword(data)))
       .catch(() => setUser(null))
       .finally(() => setReady(true));
   }, []);
 
   const setSession = (account) => {
     if (account?.id != null) localStorage.setItem(SESSION_KEY, account.id);
-    setUser(account);
+    setUser(stripPassword(account));
   };
 
-  // Sign up: fails if the username is already taken.
+  // Sign up: fails if the username is already taken or no password is given.
   const signUp = async (payload) => {
+    if (!payload.password || payload.password.length < 4) {
+      throw new Error('Password must be at least 4 characters.');
+    }
+
     const username = deriveUsername(payload);
     const existing = await findByUsername(username);
     if (existing) throw new Error('That username is already taken. Try signing in instead.');
@@ -55,46 +70,53 @@ export function AuthProvider({ children }) {
         name: payload.name || username,
         username,
         email: payload.email || `${username}@quizverse.app`,
-        avatar: payload.avatar || ''
+        avatar: payload.avatar || '',
+        password: payload.password
       })
     });
     const created = await res.json();
     setSession(created);
-    return created;
+    return stripPassword(created);
   };
 
-  // Sign in: looks up the existing account instead of recreating it, so any
-  // profile edits made earlier are preserved.
+  // Sign in: looks up the existing account and checks the password matches
+  // before establishing a session, instead of trusting the username alone.
   const signIn = async (payload) => {
     const username = deriveUsername(payload);
     const existing = await findByUsername(username);
     if (!existing) throw new Error('No account found with that username. Try signing up instead.');
+    if (existing.password !== payload.password) {
+      throw new Error('Incorrect password.');
+    }
     setSession(existing);
-    return existing;
+    return stripPassword(existing);
   };
 
   // Used for the "Continue with Google" mock — same account every time,
-  // created on first use and reused (with saved edits) after that.
+  // created on first use and reused (with saved edits) after that. There's
+  // no real password here since it's standing in for OAuth.
   const loginOrCreate = async (payload) => {
     const username = deriveUsername(payload);
     const existing = await findByUsername(username);
     if (existing) {
       setSession(existing);
-      return existing;
+      return stripPassword(existing);
     }
-    return signUp(payload);
+    return signUp({ ...payload, password: `google-${username}` });
   };
 
   const updateProfile = async (fields) => {
     if (!user?.id) return null;
+    // Never let a profile-edit PATCH accidentally touch the password field.
+    const { password, ...safeFields } = fields;
     const res = await fetch(`${API}/users/${user.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(fields)
+      body: JSON.stringify(safeFields)
     });
     const updated = await res.json();
-    setUser(updated);
-    return updated;
+    setUser(stripPassword(updated));
+    return stripPassword(updated);
   };
 
   // Only forgets which account is active on this device — the account
