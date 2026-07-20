@@ -1,4 +1,6 @@
-const API = 'http://localhost:4000';
+import { BASE_URL } from "../api/baseURl";
+
+const API = BASE_URL;
 
 export async function getHistory(userId) {
   const scope = userId != null ? `&userId=${encodeURIComponent(userId)}` : '';
