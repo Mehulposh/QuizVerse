@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-const API = 'http://localhost:4000';
+import { BASE_URL } from "../api/baseURl";
+
+const API = BASE_URL;
 // Only remembers *which* account is active on this device — the account
 // data itself lives in db.json's "users" collection, not here.
 const SESSION_KEY = 'quizverse_session_user_id';
