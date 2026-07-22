@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-
-import { BASE_URL } from "../api/baseURl";
-
+import { BASE_URL } from '../api/baseURl';
 const API = BASE_URL;
+
 // Only remembers *which* account is active on this device — the account
 // data itself lives in db.json's "users" collection, not here.
 const SESSION_KEY = 'quizverse_session_user_id';
@@ -121,6 +120,28 @@ export function AuthProvider({ children }) {
     return stripPassword(updated);
   };
 
+  // Password change is intentionally separate from updateProfile: it fetches
+  // the full record (including password, which stripPassword() keeps out of
+  // React state) to verify the current password before writing a new one.
+  const changePassword = async (currentPassword, newPassword) => {
+    if (!user?.id) throw new Error('Not signed in.');
+    if (!newPassword || newPassword.length < 4) {
+      throw new Error('New password must be at least 4 characters.');
+    }
+
+    const res = await fetch(`${API}/users/${user.id}`);
+    const full = await res.json();
+    if (full.password !== currentPassword) {
+      throw new Error('Current password is incorrect.');
+    }
+
+    await fetch(`${API}/users/${user.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: newPassword })
+    });
+  };
+
   // Only forgets which account is active on this device — the account
   // itself is untouched in db.json.
   const logout = () => {
@@ -129,7 +150,7 @@ export function AuthProvider({ children }) {
   };
 
   const value = useMemo(
-    () => ({ user, ready, signIn, signUp, loginOrCreate, logout, updateProfile }),
+    () => ({ user, ready, signIn, signUp, loginOrCreate, logout, updateProfile, changePassword }),
     [user, ready]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
