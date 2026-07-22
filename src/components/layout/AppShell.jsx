@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
+import Footer from './Footer';
 
 export default function AppShell() {
   return (
@@ -18,6 +19,7 @@ export default function AppShell() {
         <main className="mx-auto max-w-7xl animate-pop-in px-4 py-8 sm:px-6">
           <Outlet />
         </main>
+        <Footer/>
       </div>
     </div>
   );
