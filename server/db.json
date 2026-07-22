@@ -1,0 +1,31 @@
+{
+  "users": [
+    {
+      "name": "Mehul",
+      "username": "Mehul",
+      "email": "test123@test.com",
+      "avatar": "",
+      "password": "12345678",
+      "id": 1
+    },
+    {
+      "name": "Google User",
+      "username": "you",
+      "email": "you@gmail.com",
+      "avatar": "",
+      "password": "google-you",
+      "id": 2
+    }
+  ],
+  "history": [
+    {
+      "score": 4,
+      "total": 10,
+      "correct": 4,
+      "category": "Animals",
+      "difficulty": "mixed",
+      "date": "2026-07-20T12:11:52.159Z",
+      "id": 1
+    }
+  ]
+}
