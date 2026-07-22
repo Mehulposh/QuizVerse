@@ -1,4 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import { useAuth } from '../context/AuthContext';
 import { getStatsSummary } from '../lib/history';
 import Input from '../components/ui/input';
@@ -6,13 +7,12 @@ import Button from '../components/ui/button';
 import { TrophyIcon, TargetIcon, BoltIcon } from '../components/icon';
 
 export default function Profile() {
-  
- const { user, updateProfile } = useAuth();
+  const { user, updateProfile, changePassword } = useAuth();
   const [summary, setSummary] = useState({ bestScore: 0, accuracy: 0, quizzesPlayed: 0, history: [] });
- 
+
   useEffect(() => {
     let ignore = false;
-    getStatsSummary()
+    getStatsSummary(user?.id)
       .then((data) => {
         if (!ignore) setSummary(data);
       })
@@ -22,15 +22,15 @@ export default function Profile() {
     return () => {
       ignore = true;
     };
-  }, []);
- 
+  }, [user?.id]);
+
   const [form, setForm] = useState({
     avatar: user?.avatar || '',
     name: user?.name || '',
     username: user?.username || '',
     email: user?.email || ''
   });
- 
+
   useEffect(() => {
     if (!user) return;
     setForm({
@@ -40,20 +40,44 @@ export default function Profile() {
       email: user.email || ''
     });
   }, [user]);
- 
+
   const initial = (form.name || 'G')[0].toUpperCase();
- 
+
   const save = () => updateProfile(form);
- 
+
+  const [passwordForm, setPasswordForm] = useState({ current: '', next: '', confirm: '' });
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const submitPasswordChange = async () => {
+    if (!passwordForm.current || !passwordForm.next || !passwordForm.confirm) {
+      toast.error('Fill in all three password fields.');
+      return;
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      toast.error('New password and confirmation do not match.');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await changePassword(passwordForm.current, passwordForm.next);
+      toast.success('Password updated.');
+      setPasswordForm({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      toast.error(err.message || 'Could not update password.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const { bestScore = 0, accuracy = 0, quizzesPlayed = 0, history: rawHistory } = summary || {};
   const history = Array.isArray(rawHistory) ? rawHistory : [];
- 
+
   const statCards = [
     { label: 'Best score', value: bestScore, icon: TrophyIcon },
     { label: 'Accuracy', value: `${accuracy}%`, icon: TargetIcon },
     { label: 'Quizzes played', value: quizzesPlayed, icon: BoltIcon }
   ];
- 
+
   return (
     <div className="space-y-6">
       <div>
@@ -117,6 +141,48 @@ export default function Profile() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="glass animate-pop-in rounded-3xl p-6 sm:p-8">
+        <h2 className="text-lg font-semibold">Change password</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Update the password used to sign in to this account.
+        </p>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Current password</label>
+            <Input
+              type="password"
+              value={passwordForm.current}
+              onChange={(e) => setPasswordForm((f) => ({ ...f, current: e.target.value }))}
+              placeholder="••••••••"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">New password</label>
+            <Input
+              type="password"
+              value={passwordForm.next}
+              onChange={(e) => setPasswordForm((f) => ({ ...f, next: e.target.value }))}
+              placeholder="••••••••"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Confirm new password</label>
+            <Input
+              type="password"
+              value={passwordForm.confirm}
+              onChange={(e) => setPasswordForm((f) => ({ ...f, confirm: e.target.value }))}
+              placeholder="••••••••"
+              onKeyDown={(e) => e.key === 'Enter' && submitPasswordChange()}
+            />
+          </div>
+        </div>
+
+        <Button className="mt-6" onClick={submitPasswordChange} disabled={changingPassword}>
+          {changingPassword ? 'Updating...' : 'Update password'}
+        </Button>
       </div>
 
       <div className="glass animate-pop-in rounded-3xl p-6 sm:p-8">
